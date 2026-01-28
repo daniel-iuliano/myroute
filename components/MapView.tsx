@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap, useMapEvents, Circle } from 'react-leaflet';
 import L from 'leaflet';
-import { Coordinate, Route, CustomMarker, MovementMode } from '../types';
-import { MARKER_TYPES } from '../constants';
+import { Coordinate, Route, CustomMarker, MovementMode, Language } from '../types';
+import { MARKER_TYPES, TRANSLATIONS } from '../constants';
 
 // --- Helpers ---
 
@@ -120,6 +120,7 @@ interface MapViewProps {
   onMapClick: (lat: number, lng: number) => void;
   onDeleteMarker: (id: string) => void;
   centerTrigger: number;
+  language: Language;
 }
 
 export const MapView: React.FC<MapViewProps> = ({
@@ -132,9 +133,11 @@ export const MapView: React.FC<MapViewProps> = ({
   isAddMarkerMode,
   onMapClick,
   onDeleteMarker,
-  centerTrigger
+  centerTrigger,
+  language
 }) => {
   const mapRef = useRef<L.Map | null>(null);
+  const t = TRANSLATIONS[language];
 
   // Manual center logic for button press
   useEffect(() => {
@@ -243,12 +246,12 @@ export const MapView: React.FC<MapViewProps> = ({
               <Popup className="custom-popup" closeButton={false}>
                 <div className="p-1 min-w-[120px]">
                   <h3 className="font-bold text-zinc-900">{marker.label}</h3>
-                  <p className="text-xs text-zinc-500 capitalize">{marker.type}</p>
+                  <p className="text-xs text-zinc-500 capitalize">{t.marker_types[marker.type]}</p>
                   <button 
                     onClick={() => onDeleteMarker(marker.id)}
                     className="mt-2 text-xs text-red-500 font-medium hover:text-red-700 w-full text-left"
                   >
-                    Delete Location
+                    {t.delete_location}
                   </button>
                 </div>
               </Popup>

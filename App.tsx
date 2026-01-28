@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MapView } from './components/MapView';
 import { MapControls } from './components/MapControls';
 import { MarkerModal } from './components/MarkerModal';
-import { Route, Coordinate, CustomMarker, RouteSegment, MovementMode } from './types';
+import { Route, Coordinate, CustomMarker, RouteSegment, MovementMode, Language } from './types';
 import { getRoutes, saveRoutes, getMarkers, saveMarkers } from './services/storage';
 import { calculateDistance, calculateSegmentMetrics } from './utils/geo'; 
+import { GEOLOCATION_OPTIONS, TRANSLATIONS } from './constants';
+import { Globe } from 'lucide-react';
 
 // Simple UUID generator for this environment
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -24,6 +26,7 @@ const App: React.FC = () => {
   
   // Settings State
   const [currentMode, setCurrentMode] = useState<MovementMode>('walking');
+  const [language, setLanguage] = useState<Language>('en');
 
   // UI State
   const [isAddMarkerMode, setIsAddMarkerMode] = useState(false);
@@ -31,9 +34,10 @@ const App: React.FC = () => {
   const [tempMarkerPos, setTempMarkerPos] = useState<{lat: number, lng: number} | null>(null);
   const [centerTrigger, setCenterTrigger] = useState(0);
 
-  // Refs for cleanup
+  // Refs for cleanup and logic
   const watchId = useRef<number | null>(null);
   const wakeLock = useRef<any>(null);
+  const lastLocationRef = useRef<Coordinate | null>(null);
 
   // Load data on mount and sanitize it
   useEffect(() => {
@@ -66,28 +70,32 @@ const App: React.FC = () => {
           const lng = pos.coords.longitude;
           const accuracy = pos.coords.accuracy;
           if (isValidNumber(lat) && isValidNumber(lng)) {
-            setUserLocation({
+            const newPoint = {
               lat,
               lng,
               timestamp: pos.timestamp,
               accuracy
-            });
+            };
+            setUserLocation(newPoint);
+            lastLocationRef.current = newPoint;
           }
         },
         (err) => console.error("Error getting location", err),
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        GEOLOCATION_OPTIONS
       );
     }
   }, []);
 
   // Wake Lock Management
   const requestWakeLock = async () => {
-    if ('wakeLock' in navigator) {
+    // Only request if supported and document is visible
+    if ('wakeLock' in navigator && document.visibilityState === 'visible') {
       try {
         wakeLock.current = await (navigator as any).wakeLock.request('screen');
         console.log('Wake Lock active');
       } catch (err: any) {
-        console.error(`${err.name}, ${err.message}`);
+        // Warn instead of error to avoid console noise for non-critical failures
+        console.warn(`Wake Lock failed: ${err.name}, ${err.message}`);
       }
     }
   };
@@ -99,7 +107,7 @@ const App: React.FC = () => {
         wakeLock.current = null;
         console.log('Wake Lock released');
       } catch (err: any) {
-        console.error(`${err.name}, ${err.message}`);
+        console.warn(`Wake Lock release failed: ${err.name}, ${err.message}`);
       }
     }
   };
@@ -153,12 +161,6 @@ const App: React.FC = () => {
         });
       }
 
-      const opts = {
-        enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 0
-      };
-
       watchId.current = navigator.geolocation.watchPosition(
         (pos) => {
           const lat = pos.coords.latitude;
@@ -174,6 +176,16 @@ const App: React.FC = () => {
             accuracy
           };
 
+          // --- Accuracy Filtering ---
+          // If we have a previous high-accuracy point (<50m), and this new one is
+          // very poor (>500m), it's likely a glitch (cell tower fallback). Ignore it.
+          const prev = lastLocationRef.current;
+          if (prev && prev.accuracy && prev.accuracy < 50 && accuracy > 500) {
+              console.warn("Ignoring low accuracy update", accuracy);
+              return;
+          }
+
+          lastLocationRef.current = newPoint;
           setUserLocation(newPoint);
 
           setActiveSegment(prevSeg => {
@@ -190,7 +202,7 @@ const App: React.FC = () => {
               distToAdd = calculateDistance(lastPoint, newPoint);
             }
 
-            // Filter GPS noise
+            // Filter GPS noise (jitter when standing still)
             if (prevSeg.points.length > 0 && distToAdd < 1) {
               return prevSeg;
             }
@@ -211,7 +223,7 @@ const App: React.FC = () => {
           });
         },
         (err) => console.error("Tracking Error:", err),
-        opts
+        GEOLOCATION_OPTIONS
       );
     } else {
       if (watchId.current !== null) {
@@ -344,15 +356,17 @@ const App: React.FC = () => {
             const lng = pos.coords.longitude;
             const accuracy = pos.coords.accuracy;
             if (isValidNumber(lat) && isValidNumber(lng)) {
-                setUserLocation({
+                const pt = {
                     lat,
                     lng,
                     timestamp: pos.timestamp,
                     accuracy
-                });
+                };
+                setUserLocation(pt);
+                lastLocationRef.current = pt;
                 setCenterTrigger(prev => prev + 1);
             }
-        }, (err) => {}, { enableHighAccuracy: true });
+        }, (err) => {}, GEOLOCATION_OPTIONS);
     }
   };
 
@@ -374,7 +388,27 @@ const App: React.FC = () => {
         onMapClick={handleMapClick}
         onDeleteMarker={handleDeleteMarker}
         centerTrigger={centerTrigger}
+        language={language}
       />
+      
+      {/* Language Selector */}
+      <div className="absolute top-4 right-4 z-[1000] group">
+        <div className="bg-white/80 backdrop-blur-md shadow-sm rounded-full pl-2 pr-3 py-1.5 flex items-center gap-1.5 border border-zinc-200/50 hover:bg-white transition-all cursor-pointer">
+           <Globe size={16} className="text-zinc-500" />
+           <select 
+             value={language} 
+             onChange={(e) => setLanguage(e.target.value as Language)}
+             className="bg-transparent text-sm font-medium text-zinc-700 focus:outline-none cursor-pointer appearance-none pr-4"
+             style={{ backgroundImage: 'none' }}
+           >
+              <option value="en">English</option>
+              <option value="es">Español</option>
+              <option value="ar">Argentino</option>
+           </select>
+           {/* Custom arrow */}
+           <div className="absolute right-3 top-1/2 -translate-y-1/2 w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-t-[4px] border-t-zinc-400 pointer-events-none"></div>
+        </div>
+      </div>
       
       {/* HUD & Controls */}
       <MapControls
@@ -389,6 +423,7 @@ const App: React.FC = () => {
         currentCalories={liveCalories}
         currentMode={currentMode}
         onModeChange={handleModeChange}
+        language={language}
       />
 
       <MarkerModal
@@ -399,13 +434,14 @@ const App: React.FC = () => {
         }}
         onSave={handleSaveMarker}
         tempMarker={tempMarkerPos}
+        language={language}
       />
 
       {(!userLocation || !isValidNumber(userLocation.lat)) && (
          <div className="absolute inset-0 flex items-center justify-center bg-zinc-50 z-[100] transition-opacity duration-1000 pointer-events-none">
             <div className="flex flex-col items-center animate-pulse">
                 <div className="w-12 h-12 border-4 border-zinc-900 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-zinc-400 font-medium tracking-widest text-xs uppercase">Locating Signal</p>
+                <p className="text-zinc-400 font-medium tracking-widest text-xs uppercase">{TRANSLATIONS[language].locating}</p>
             </div>
          </div>
       )}

@@ -2,6 +2,7 @@
   "name": "MonoTrack",
   "description": "A minimalist, privacy-focused location tracker that visualizes your routes and activity habits with a clean, monochromatic aesthetic.",
   "requestFramePermissions": [
-    "geolocation"
+    "geolocation",
+    "screen-wake-lock"
   ]
 }

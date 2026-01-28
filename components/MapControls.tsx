@@ -1,7 +1,7 @@
 import React from 'react';
 import { Play, Pause, StopCircle, MapPin, Navigation } from 'lucide-react';
-import { MOVEMENT_MODES } from '../constants';
-import { MovementMode } from '../types';
+import { MOVEMENT_MODES, TRANSLATIONS } from '../constants';
+import { MovementMode, Language } from '../types';
 
 interface MapControlsProps {
   isTracking: boolean;
@@ -15,6 +15,7 @@ interface MapControlsProps {
   currentCalories: number;
   currentMode: MovementMode;
   onModeChange: (mode: MovementMode) => void;
+  language: Language;
 }
 
 export const MapControls: React.FC<MapControlsProps> = ({
@@ -28,17 +29,20 @@ export const MapControls: React.FC<MapControlsProps> = ({
   currentSteps,
   currentCalories,
   currentMode,
-  onModeChange
+  onModeChange,
+  language
 }) => {
+  const t = TRANSLATIONS[language];
+
   return (
     <div className="absolute bottom-6 md:bottom-8 left-0 right-0 px-4 md:px-8 z-[1000] pointer-events-none flex flex-col items-center gap-3 md:gap-4 pb-safe-area">
       {/* Live Stats Card */}
       {isTracking && (
         <div className="bg-white/90 backdrop-blur-md shadow-lg rounded-2xl p-3 md:p-4 w-full max-w-sm pointer-events-auto border border-zinc-200/50 animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div className="flex justify-between items-end mb-2">
-            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Distance</span>
+            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">{t.distance}</span>
             <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-               {currentMode === 'walking' ? 'Steps' : 'Calories'}
+               {currentMode === 'walking' ? t.steps : t.calories}
             </span>
           </div>
           <div className="flex justify-between items-baseline mb-2">
@@ -46,7 +50,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
               <span className="text-3xl font-bold text-zinc-900 tracking-tight">
                 {(currentDistance / 1000).toFixed(2)}
               </span>
-              <span className="text-sm font-medium text-zinc-500">km</span>
+              <span className="text-sm font-medium text-zinc-500">{t.km}</span>
             </div>
             
             {/* Conditional Metric Display */}
@@ -55,14 +59,14 @@ export const MapControls: React.FC<MapControlsProps> = ({
                 <span className="text-3xl font-bold text-zinc-900 tracking-tight">
                     {currentSteps.toLocaleString()}
                 </span>
-                <span className="text-sm font-medium text-zinc-500">steps</span>
+                <span className="text-sm font-medium text-zinc-500">{t.steps.toLowerCase()}</span>
                 </div>
             ) : (
                 <div className="flex items-baseline gap-1">
                 <span className="text-3xl font-bold text-zinc-900 tracking-tight">
                     {Math.round(currentCalories)}
                 </span>
-                <span className="text-sm font-medium text-zinc-500">kcal</span>
+                <span className="text-sm font-medium text-zinc-500">{t.kcal}</span>
                 </div>
             )}
           </div>
@@ -70,10 +74,10 @@ export const MapControls: React.FC<MapControlsProps> = ({
           {/* Secondary stats for hybrid/completeness */}
           <div className="flex items-center gap-2 pt-2 border-t border-zinc-100 text-xs text-zinc-500">
              {currentMode === 'walking' && (
-                <span>{Math.round(currentCalories)} kcal burned</span>
+                <span>{Math.round(currentCalories)} {t.burned}</span>
              )}
              {currentMode !== 'walking' && currentSteps > 0 && (
-                <span>{currentSteps} steps taken previously</span>
+                <span>{currentSteps} {t.taken_previously}</span>
              )}
           </div>
         </div>
@@ -92,7 +96,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
                }`}
              >
                  <span>{mode.icon}</span>
-                 <span>{mode.label}</span>
+                 <span>{t.modes[mode.value as MovementMode]}</span>
              </button>
          ))}
       </div>
@@ -104,7 +108,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
         <button
           onClick={onCenterMap}
           className="bg-white text-zinc-900 p-3 md:p-4 rounded-full shadow-xl hover:bg-zinc-50 active:scale-95 transition-all duration-200 border border-zinc-100"
-          aria-label="Center Map"
+          aria-label={t.center_map || "Center Map"}
         >
           <Navigation size={24} strokeWidth={2} />
         </button>
@@ -115,6 +119,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
               <button
                 onClick={onToggleTracking}
                 className="bg-zinc-900 text-white p-3 md:p-4 rounded-full hover:bg-zinc-800 active:scale-95 transition-all duration-200 flex items-center justify-center w-14 h-14 md:w-16 md:h-16"
+                aria-label={t.tracking_start || "Start"}
               >
                 <Play size={28} fill="currentColor" className="ml-1" />
               </button>
@@ -123,12 +128,14 @@ export const MapControls: React.FC<MapControlsProps> = ({
               <button
                 onClick={onToggleTracking}
                 className="bg-zinc-800 text-amber-400 p-3 md:p-4 rounded-full hover:bg-zinc-700 active:scale-95 transition-all duration-200 w-12 h-12 md:w-14 md:h-14 flex items-center justify-center"
+                aria-label={t.tracking_stop || "Pause"}
               >
                 <Pause size={24} fill="currentColor" />
               </button>
               <button
                 onClick={onStopTracking}
                 className="bg-red-500 text-white p-3 md:p-4 rounded-full hover:bg-red-600 active:scale-95 transition-all duration-200 w-12 h-12 md:w-14 md:h-14 flex items-center justify-center"
+                aria-label="Stop"
               >
                 <StopCircle size={24} fill="currentColor" />
               </button>
@@ -144,7 +151,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
               ? 'bg-zinc-900 text-white ring-2 ring-zinc-900 ring-offset-2' 
               : 'bg-white text-zinc-900 hover:bg-zinc-50'
           }`}
-          aria-label="Add Marker"
+          aria-label={t.add_marker || "Add Marker"}
         >
           <MapPin size={24} strokeWidth={2} className={isAddMarkerMode ? "animate-pulse" : ""} />
         </button>
@@ -152,7 +159,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
       
       {isAddMarkerMode && (
          <div className="bg-zinc-900 text-white text-sm px-4 py-2 rounded-full shadow-lg animate-bounce mb-2 text-center">
-            Tap map to place marker
+            {t.tap_map}
          </div>
       )}
       <style>{`

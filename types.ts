@@ -1,4 +1,5 @@
 export type MovementMode = 'walking' | 'bike' | 'bus' | 'vehicle';
+export type Language = 'en' | 'es' | 'ar';
 
 export interface Coordinate {
   lat: number;
