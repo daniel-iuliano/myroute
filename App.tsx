@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MapView } from './components/MapView';
 import { MapControls } from './components/MapControls';
 import { MarkerModal } from './components/MarkerModal';
+import { StatsModal } from './components/StatsModal';
+import { PauseModal } from './components/PauseModal';
 import { Route, Coordinate, CustomMarker, RouteSegment, MovementMode, Language } from './types';
 import { getRoutes, saveRoutes, getMarkers, saveMarkers } from './services/storage';
 import { calculateDistance, calculateSegmentMetrics } from './utils/geo'; 
@@ -31,13 +33,18 @@ const App: React.FC = () => {
   // UI State
   const [isAddMarkerMode, setIsAddMarkerMode] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
   const [tempMarkerPos, setTempMarkerPos] = useState<{lat: number, lng: number} | null>(null);
   const [centerTrigger, setCenterTrigger] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0);
 
   // Refs for cleanup and logic
   const watchId = useRef<number | null>(null);
   const wakeLock = useRef<any>(null);
   const lastLocationRef = useRef<Coordinate | null>(null);
+  // Ref to track elapsed time accurately across pauses
+  const startTimeRef = useRef<number>(0);
+  const accumulatedTimeRef = useRef<number>(0); // Time accumulated from previous segments/pauses
 
   // Load data on mount and sanitize it
   useEffect(() => {
@@ -85,6 +92,28 @@ const App: React.FC = () => {
       );
     }
   }, []);
+
+  // Timer Logic
+  useEffect(() => {
+    let interval: number;
+    if (isTracking) {
+      // If just started tracking, or resumed
+      if (startTimeRef.current === 0) {
+        startTimeRef.current = Date.now();
+      }
+      
+      interval = window.setInterval(() => {
+        const now = Date.now();
+        const currentSessionDuration = now - startTimeRef.current;
+        setElapsedTime(accumulatedTimeRef.current + currentSessionDuration);
+      }, 1000);
+    } else {
+      // Not tracking
+      // If we have a current route (PAUSED), we keep the elapsed time displayed
+      // If we don't have a route (STOPPED), elapsed time is 0 (reset in stop handler)
+    }
+    return () => window.clearInterval(interval);
+  }, [isTracking]);
 
   // Wake Lock Management
   const requestWakeLock = async () => {
@@ -177,8 +206,6 @@ const App: React.FC = () => {
           };
 
           // --- Accuracy Filtering ---
-          // If we have a previous high-accuracy point (<50m), and this new one is
-          // very poor (>500m), it's likely a glitch (cell tower fallback). Ignore it.
           const prev = lastLocationRef.current;
           if (prev && prev.accuracy && prev.accuracy < 50 && accuracy > 500) {
               console.warn("Ignoring low accuracy update", accuracy);
@@ -202,7 +229,7 @@ const App: React.FC = () => {
               distToAdd = calculateDistance(lastPoint, newPoint);
             }
 
-            // Filter GPS noise (jitter when standing still)
+            // Filter GPS noise
             if (prevSeg.points.length > 0 && distToAdd < 1) {
               return prevSeg;
             }
@@ -237,7 +264,7 @@ const App: React.FC = () => {
         navigator.geolocation.clearWatch(watchId.current);
       }
     };
-  }, [isTracking]); // Logic loop managed by conditional checks inside
+  }, [isTracking]);
 
   // Handle Mode Switching
   const handleModeChange = (newMode: MovementMode) => {
@@ -279,8 +306,17 @@ const App: React.FC = () => {
 
   const handleToggleTracking = () => {
     if (isTracking) {
+      // Pause
       setIsTracking(false);
+      
+      // Accumulate time logic
+      const sessionDuration = Date.now() - startTimeRef.current;
+      accumulatedTimeRef.current += sessionDuration;
+      startTimeRef.current = 0; // Reset start time for next resume
+
     } else {
+      // Resume
+      startTimeRef.current = Date.now();
       setIsTracking(true);
     }
   };
@@ -301,6 +337,8 @@ const App: React.FC = () => {
       }
 
       finalRoute.endTime = Date.now();
+      // Ensure start time is accurate to the very first segment or now if empty
+      if (finalRoute.startTime === 0) finalRoute.startTime = Date.now();
 
       // Only save if there is data
       if (finalRoute.totalDistance > 0) {
@@ -310,9 +348,12 @@ const App: React.FC = () => {
       }
     }
 
-    // Reset
+    // Reset All
     setCurrentRoute(null);
     setActiveSegment(null);
+    setElapsedTime(0);
+    accumulatedTimeRef.current = 0;
+    startTimeRef.current = 0;
   };
 
   // Marker Logic
@@ -374,6 +415,10 @@ const App: React.FC = () => {
   const liveDistance = (currentRoute?.totalDistance || 0) + (activeSegment?.distance || 0);
   const liveSteps = (currentRoute?.totalSteps || 0) + (activeSegment?.steps || 0);
   const liveCalories = (currentRoute?.totalCalories || 0) + (activeSegment?.calories || 0);
+  
+  // Logic to determine if we are in "Paused" state:
+  // Not tracking (GPS off) BUT we have a current route in memory
+  const isPaused = !isTracking && currentRoute !== null;
 
   return (
     <div className="relative w-full h-[100dvh] overflow-hidden bg-zinc-50 font-sans">
@@ -418,11 +463,13 @@ const App: React.FC = () => {
         onAddMarkerMode={() => setIsAddMarkerMode(!isAddMarkerMode)}
         isAddMarkerMode={isAddMarkerMode}
         onCenterMap={handleCenterMap}
+        onOpenStats={() => setStatsOpen(true)}
         currentDistance={liveDistance}
         currentSteps={liveSteps}
         currentCalories={liveCalories}
         currentMode={currentMode}
         onModeChange={handleModeChange}
+        elapsedTime={elapsedTime}
         language={language}
       />
 
@@ -435,6 +482,25 @@ const App: React.FC = () => {
         onSave={handleSaveMarker}
         tempMarker={tempMarkerPos}
         language={language}
+      />
+
+      <StatsModal 
+        isOpen={statsOpen}
+        onClose={() => setStatsOpen(false)}
+        routes={savedRoutes}
+        language={language}
+      />
+
+      <PauseModal 
+        isOpen={isPaused}
+        onResume={handleToggleTracking}
+        onFinish={handleStopTracking}
+        language={language}
+        distance={liveDistance}
+        duration={elapsedTime}
+        calories={liveCalories}
+        steps={liveSteps}
+        mode={currentMode}
       />
 
       {(!userLocation || !isValidNumber(userLocation.lat)) && (

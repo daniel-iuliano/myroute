@@ -1,7 +1,8 @@
 import React from 'react';
-import { Play, Pause, StopCircle, MapPin, Navigation } from 'lucide-react';
+import { Play, Pause, StopCircle, MapPin, Navigation, BarChart3, Timer } from 'lucide-react';
 import { MOVEMENT_MODES, TRANSLATIONS } from '../constants';
 import { MovementMode, Language } from '../types';
+import { formatDuration } from '../utils/geo';
 
 interface MapControlsProps {
   isTracking: boolean;
@@ -10,11 +11,13 @@ interface MapControlsProps {
   onAddMarkerMode: () => void;
   isAddMarkerMode: boolean;
   onCenterMap: () => void;
+  onOpenStats: () => void;
   currentDistance: number;
   currentSteps: number;
   currentCalories: number;
   currentMode: MovementMode;
   onModeChange: (mode: MovementMode) => void;
+  elapsedTime: number;
   language: Language;
 }
 
@@ -25,11 +28,13 @@ export const MapControls: React.FC<MapControlsProps> = ({
   onAddMarkerMode,
   isAddMarkerMode,
   onCenterMap,
+  onOpenStats,
   currentDistance,
   currentSteps,
   currentCalories,
   currentMode,
   onModeChange,
+  elapsedTime,
   language
 }) => {
   const t = TRANSLATIONS[language];
@@ -38,7 +43,18 @@ export const MapControls: React.FC<MapControlsProps> = ({
     <div className="absolute bottom-6 md:bottom-8 left-0 right-0 px-4 md:px-8 z-[1000] pointer-events-none flex flex-col items-center gap-3 md:gap-4 pb-safe-area">
       {/* Live Stats Card */}
       {isTracking && (
-        <div className="bg-white/90 backdrop-blur-md shadow-lg rounded-2xl p-3 md:p-4 w-full max-w-sm pointer-events-auto border border-zinc-200/50 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="bg-white/90 backdrop-blur-md shadow-lg rounded-2xl p-4 md:p-5 w-full max-w-sm pointer-events-auto border border-zinc-200/50 animate-in fade-in slide-in-from-bottom-4 duration-300">
+          
+          {/* Timer Header */}
+          <div className="flex items-center justify-center mb-4 pb-4 border-b border-zinc-100/80">
+             <div className="flex items-center gap-2 text-zinc-900">
+                 <Timer size={18} className="text-zinc-400 animate-pulse" />
+                 <span className="text-3xl font-mono font-bold tracking-tight tabular-nums">
+                    {formatDuration(elapsedTime)}
+                 </span>
+             </div>
+          </div>
+
           <div className="flex justify-between items-end mb-2">
             <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">{t.distance}</span>
             <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
@@ -111,6 +127,15 @@ export const MapControls: React.FC<MapControlsProps> = ({
           aria-label={t.center_map || "Center Map"}
         >
           <Navigation size={24} strokeWidth={2} />
+        </button>
+
+        {/* Stats Button */}
+        <button
+          onClick={onOpenStats}
+          className="bg-white text-zinc-900 p-3 md:p-4 rounded-full shadow-xl hover:bg-zinc-50 active:scale-95 transition-all duration-200 border border-zinc-100"
+          aria-label={t.stats}
+        >
+          <BarChart3 size={24} strokeWidth={2} />
         </button>
 
         {/* Tracking Toggle */}
