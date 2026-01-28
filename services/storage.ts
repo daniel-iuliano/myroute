@@ -19,6 +19,14 @@ export const getRoutes = (): Route[] => {
   }
 };
 
+export const clearRoutes = (): void => {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.ROUTES);
+  } catch (e) {
+    console.error('Failed to clear routes', e);
+  }
+};
+
 export const saveMarkers = (markers: CustomMarker[]): void => {
   try {
     localStorage.setItem(STORAGE_KEYS.MARKERS, JSON.stringify(markers));

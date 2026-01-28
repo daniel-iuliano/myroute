@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Trophy, Calendar, Activity, Clock } from 'lucide-react';
+import { X, Trophy, Calendar, Activity, Download, Trash2 } from 'lucide-react';
 import { Route, Language } from '../types';
 import { TRANSLATIONS } from '../constants';
 import { calculateAnalytics, getTopRoutes } from '../utils/analytics';
@@ -10,14 +10,32 @@ interface StatsModalProps {
   onClose: () => void;
   routes: Route[];
   language: Language;
+  onClearData: () => void;
 }
 
-export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, routes, language }) => {
+export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, routes, language, onClearData }) => {
   if (!isOpen) return null;
 
   const t = TRANSLATIONS[language];
   const stats = calculateAnalytics(routes);
   const topRoutes = getTopRoutes(routes);
+
+  const handleExport = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(routes));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", `monotrack_export_${new Date().toISOString().split('T')[0]}.json`);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+  };
+
+  const handleDelete = () => {
+    if (window.confirm(t.confirm_delete)) {
+      onClearData();
+      onClose();
+    }
+  };
 
   const StatCard = ({ title, distance, calories, duration, count, icon }: any) => (
     <div className="bg-zinc-50 rounded-xl p-4 border border-zinc-100">
@@ -128,6 +146,25 @@ export const StatsModal: React.FC<StatsModalProps> = ({ isOpen, onClose, routes,
               </div>
             )}
           </div>
+          
+          {/* Data Actions */}
+          <div className="pt-6 border-t border-zinc-100 grid grid-cols-2 gap-3">
+             <button 
+               onClick={handleExport}
+               className="flex items-center justify-center gap-2 py-3 bg-zinc-100 text-zinc-900 rounded-xl text-sm font-bold hover:bg-zinc-200 transition-colors"
+             >
+                <Download size={16} />
+                {t.export_data}
+             </button>
+             <button 
+               onClick={handleDelete}
+               className="flex items-center justify-center gap-2 py-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition-colors"
+             >
+                <Trash2 size={16} />
+                {t.delete_data}
+             </button>
+          </div>
+
         </div>
       </div>
     </div>

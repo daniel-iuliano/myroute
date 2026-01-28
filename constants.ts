@@ -85,6 +85,9 @@ export const TRANSLATIONS = {
     resume: "Resume",
     finish: "Finish",
     current_session: "Current Session",
+    delete_data: "Delete Data",
+    export_data: "Export Data",
+    confirm_delete: "Are you sure you want to delete all recorded history?",
     modes: {
       walking: "Walking",
       bike: "Bike",
@@ -133,6 +136,9 @@ export const TRANSLATIONS = {
     resume: "Reanudar",
     finish: "Terminar",
     current_session: "Sesión Actual",
+    delete_data: "Borrar Datos",
+    export_data: "Exportar Datos",
+    confirm_delete: "¿Estás seguro de que quieres borrar el historial?",
     modes: {
       walking: "Caminando",
       bike: "Bicicleta",
@@ -181,6 +187,9 @@ export const TRANSLATIONS = {
     resume: "Seguir",
     finish: "Listo",
     current_session: "Ahora",
+    delete_data: "Borrar Todo",
+    export_data: "Exportar",
+    confirm_delete: "¿Posta querés borrar todo el historial?",
     modes: {
       walking: "A pata",
       bike: "Bici",

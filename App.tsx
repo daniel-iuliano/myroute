@@ -5,7 +5,7 @@ import { MarkerModal } from './components/MarkerModal';
 import { StatsModal } from './components/StatsModal';
 import { PauseModal } from './components/PauseModal';
 import { Route, Coordinate, CustomMarker, RouteSegment, MovementMode, Language } from './types';
-import { getRoutes, saveRoutes, getMarkers, saveMarkers } from './services/storage';
+import { getRoutes, saveRoutes, getMarkers, saveMarkers, clearRoutes } from './services/storage';
 import { calculateDistance, calculateSegmentMetrics } from './utils/geo'; 
 import { GEOLOCATION_OPTIONS, TRANSLATIONS } from './constants';
 import { Globe } from 'lucide-react';
@@ -356,6 +356,11 @@ const App: React.FC = () => {
     startTimeRef.current = 0;
   };
 
+  const handleClearData = () => {
+    clearRoutes();
+    setSavedRoutes([]);
+  };
+
   // Marker Logic
   const handleMapClick = (lat: number, lng: number) => {
     if (!isValidNumber(lat) || !isValidNumber(lng)) return;
@@ -489,6 +494,7 @@ const App: React.FC = () => {
         onClose={() => setStatsOpen(false)}
         routes={savedRoutes}
         language={language}
+        onClearData={handleClearData}
       />
 
       <PauseModal 
