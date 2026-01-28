@@ -44,3 +44,35 @@ export const getMarkers = (): CustomMarker[] => {
     return [];
   }
 };
+
+export const saveTheme = (theme: string): void => {
+  try {
+    localStorage.setItem(STORAGE_KEYS.THEME, theme);
+  } catch (e) {
+    console.error('Failed to save theme', e);
+  }
+};
+
+export const getTheme = (): string => {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.THEME) || 'zinc';
+  } catch (e) {
+    return 'zinc';
+  }
+};
+
+export const saveLanguage = (lang: string): void => {
+  try {
+    localStorage.setItem(STORAGE_KEYS.LANGUAGE, lang);
+  } catch (e) {
+    console.error('Failed to save language', e);
+  }
+};
+
+export const getLanguage = (): string => {
+  try {
+    return localStorage.getItem(STORAGE_KEYS.LANGUAGE) || 'en';
+  } catch (e) {
+    return 'en';
+  }
+};

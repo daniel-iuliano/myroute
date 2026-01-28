@@ -1,7 +1,19 @@
 export const STORAGE_KEYS = {
   ROUTES: 'monotrack_routes_v2',
   MARKERS: 'monotrack_markers',
+  THEME: 'monotrack_theme',
+  LANGUAGE: 'monotrack_language',
 };
+
+// Presets now defined with Hue and Saturation for consistent generation
+export const THEME_PRESETS = [
+  { label: 'Mono', value: 'zinc', hue: 240, sat: 5 },
+  { label: 'Ocean', value: 'blue', hue: 217, sat: 91 },
+  { label: 'Forest', value: 'emerald', hue: 158, sat: 64 },
+  { label: 'Berry', value: 'rose', hue: 343, sat: 88 },
+  { label: 'Sunset', value: 'amber', hue: 38, sat: 92 },
+  { label: 'Royal', value: 'violet', hue: 258, sat: 90 },
+];
 
 // Estimation: 1 step approx 0.762 meters (average)
 export const METERS_PER_STEP = 0.762;
@@ -78,6 +90,9 @@ export const TRANSLATIONS = {
     toggle_markers: "Toggle Markers",
     fitness_mode: "Fitness Mode",
     map_view: "Map View",
+    theme: "Theme",
+    select_theme: "Select Theme",
+    custom_color: "Custom Color",
     time: "Time",
     duration: "Duration",
     stats: "Analytics",
@@ -135,6 +150,9 @@ export const TRANSLATIONS = {
     toggle_markers: "Mostrar/Ocultar Marcadores",
     fitness_mode: "Modo Fitness",
     map_view: "Vista Mapa",
+    theme: "Tema",
+    select_theme: "Seleccionar Tema",
+    custom_color: "Color Personalizado",
     time: "Tiempo",
     duration: "Duración",
     stats: "Estadísticas",
@@ -192,6 +210,9 @@ export const TRANSLATIONS = {
     toggle_markers: "Mostrar/Ocultar",
     fitness_mode: "Modo Fitness",
     map_view: "Ver Mapa",
+    theme: "Tema",
+    select_theme: "Elegir Tema",
+    custom_color: "Color Personalizado",
     time: "Tiempo",
     duration: "Tiempo",
     stats: "Estadísticas",

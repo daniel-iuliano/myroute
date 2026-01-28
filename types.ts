@@ -1,5 +1,6 @@
 export type MovementMode = 'walking' | 'bike' | 'bus' | 'vehicle';
 export type Language = 'en' | 'es' | 'ar';
+export type ThemeColor = 'zinc' | 'blue' | 'emerald' | 'rose' | 'amber' | 'violet';
 
 export interface Coordinate {
   lat: number;

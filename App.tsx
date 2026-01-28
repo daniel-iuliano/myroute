@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { MapView } from './components/MapView';
 import { MapControls } from './components/MapControls';
 import { MarkerModal } from './components/MarkerModal';
 import { StatsModal } from './components/StatsModal';
 import { PauseModal } from './components/PauseModal';
 import { FitnessModeView } from './components/FitnessModeView';
+import { ThemeModal } from './components/ThemeModal';
 import { Route, Coordinate, CustomMarker, RouteSegment, MovementMode, Language } from './types';
-import { getRoutes, saveRoutes, getMarkers, saveMarkers, clearRoutes } from './services/storage';
+import { getRoutes, saveRoutes, getMarkers, saveMarkers, clearRoutes, getTheme, saveTheme, getLanguage, saveLanguage } from './services/storage';
 import { calculateDistance, calculateSegmentMetrics } from './utils/geo'; 
 import { GEOLOCATION_OPTIONS, TRANSLATIONS } from './constants';
+import { generateThemeVariables } from './utils/theme';
 import { Globe } from 'lucide-react';
 
 // Simple UUID generator for this environment
@@ -30,6 +32,7 @@ const App: React.FC = () => {
   // Settings State
   const [currentMode, setCurrentMode] = useState<MovementMode>('walking');
   const [language, setLanguage] = useState<Language>('en');
+  const [theme, setTheme] = useState<string>('zinc');
 
   // UI State
   const [isAddMarkerMode, setIsAddMarkerMode] = useState(false);
@@ -37,27 +40,30 @@ const App: React.FC = () => {
   const [isFitnessMode, setIsFitnessMode] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
   const [tempMarkerPos, setTempMarkerPos] = useState<{lat: number, lng: number} | null>(null);
-  // Track which marker is being edited
   const [editingMarker, setEditingMarker] = useState<CustomMarker | null>(null);
   
   const [centerTrigger, setCenterTrigger] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
 
-  // Refs for cleanup and logic
+  // Refs
   const watchId = useRef<number | null>(null);
   const wakeLock = useRef<any>(null);
   const lastLocationRef = useRef<Coordinate | null>(null);
-  // Ref to track elapsed time accurately across pauses
   const startTimeRef = useRef<number>(0);
-  const accumulatedTimeRef = useRef<number>(0); // Time accumulated from previous segments/pauses
+  const accumulatedTimeRef = useRef<number>(0);
 
-  // Load data on mount and sanitize it
+  // Generate Theme Styles
+  const themeVars = useMemo(() => generateThemeVariables(theme), [theme]);
+
+  // Load data on mount
   useEffect(() => {
     const rawRoutes = getRoutes();
     const rawMarkers = getMarkers();
+    const savedTheme = getTheme();
+    const savedLanguage = getLanguage();
 
-    // Sanitize Routes
     const validRoutes = rawRoutes.map(route => ({
       ...route,
       segments: (route.segments || []).map(seg => ({
@@ -66,13 +72,13 @@ const App: React.FC = () => {
       })).filter(seg => seg.points.length > 0)
     })).filter(route => route.segments.length > 0);
 
-    // Sanitize Markers
     const validMarkers = rawMarkers.filter(m => m && isValidNumber(m.lat) && isValidNumber(m.lng));
 
     setSavedRoutes(validRoutes);
     setMarkers(validMarkers);
+    setTheme(savedTheme);
+    setLanguage(savedLanguage as Language);
 
-    // Save back sanitized data if different (optional, but good for cleanup)
     if (validRoutes.length !== rawRoutes.length) saveRoutes(validRoutes);
     if (validMarkers.length !== rawMarkers.length) saveMarkers(validMarkers);
 
@@ -83,12 +89,7 @@ const App: React.FC = () => {
           const lng = pos.coords.longitude;
           const accuracy = pos.coords.accuracy;
           if (isValidNumber(lat) && isValidNumber(lng)) {
-            const newPoint = {
-              lat,
-              lng,
-              timestamp: pos.timestamp,
-              accuracy
-            };
+            const newPoint = { lat, lng, timestamp: pos.timestamp, accuracy };
             setUserLocation(newPoint);
             lastLocationRef.current = newPoint;
           }
@@ -103,34 +104,21 @@ const App: React.FC = () => {
   useEffect(() => {
     let interval: number;
     if (isTracking) {
-      // If just started tracking, or resumed
-      if (startTimeRef.current === 0) {
-        startTimeRef.current = Date.now();
-      }
-      
+      if (startTimeRef.current === 0) startTimeRef.current = Date.now();
       interval = window.setInterval(() => {
-        const now = Date.now();
-        const currentSessionDuration = now - startTimeRef.current;
-        setElapsedTime(accumulatedTimeRef.current + currentSessionDuration);
+        setElapsedTime(accumulatedTimeRef.current + (Date.now() - startTimeRef.current));
       }, 1000);
-    } else {
-      // Not tracking
-      // If we have a current route (PAUSED), we keep the elapsed time displayed
-      // If we don't have a route (STOPPED), elapsed time is 0 (reset in stop handler)
     }
     return () => window.clearInterval(interval);
   }, [isTracking]);
 
-  // Wake Lock Management
+  // Wake Lock
   const requestWakeLock = async () => {
-    // Only request if supported and document is visible
     if ('wakeLock' in navigator && document.visibilityState === 'visible') {
       try {
         wakeLock.current = await (navigator as any).wakeLock.request('screen');
-        console.log('Wake Lock active');
       } catch (err: any) {
-        // Warn instead of error to avoid console noise for non-critical failures
-        console.warn(`Wake Lock failed: ${err.name}, ${err.message}`);
+        console.warn(`Wake Lock failed: ${err.message}`);
       }
     }
   };
@@ -140,27 +128,21 @@ const App: React.FC = () => {
       try {
         await wakeLock.current.release();
         wakeLock.current = null;
-        console.log('Wake Lock released');
       } catch (err: any) {
-        console.warn(`Wake Lock release failed: ${err.name}, ${err.message}`);
+        console.warn(`Wake Lock release failed: ${err.message}`);
       }
     }
   };
 
-  // Manage Wake Lock Lifecycle
   useEffect(() => {
     if (isTracking) {
       requestWakeLock();
     } else {
       releaseWakeLock();
     }
-
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && isTracking && !wakeLock.current) {
-        requestWakeLock();
-      }
+      if (document.visibilityState === 'visible' && isTracking && !wakeLock.current) requestWakeLock();
     };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -168,31 +150,17 @@ const App: React.FC = () => {
     };
   }, [isTracking]);
 
-  // Tracking Logic
+  // Tracking
   useEffect(() => {
     if (isTracking) {
-      // Initialize Route if needed
       if (!currentRoute) {
         setCurrentRoute({
-          id: generateId(),
-          segments: [],
-          startTime: Date.now(),
-          totalDistance: 0,
-          totalSteps: 0,
-          totalCalories: 0
+          id: generateId(), segments: [], startTime: Date.now(), totalDistance: 0, totalSteps: 0, totalCalories: 0
         });
       }
-      
-      // Initialize Segment if needed (or if mode changed)
       if (!activeSegment) {
         setActiveSegment({
-          id: generateId(),
-          mode: currentMode,
-          points: [],
-          startTime: Date.now(),
-          distance: 0,
-          steps: 0,
-          calories: 0
+          id: generateId(), mode: currentMode, points: [], startTime: Date.now(), distance: 0, steps: 0, calories: 0
         });
       }
 
@@ -201,57 +169,33 @@ const App: React.FC = () => {
           const lat = pos.coords.latitude;
           const lng = pos.coords.longitude;
           const accuracy = pos.coords.accuracy;
-          
           if (!isValidNumber(lat) || !isValidNumber(lng)) return;
 
-          const newPoint: Coordinate = {
-            lat,
-            lng,
-            timestamp: pos.timestamp,
-            accuracy
-          };
-
-          // --- Accuracy Filtering ---
+          const newPoint: Coordinate = { lat, lng, timestamp: pos.timestamp, accuracy };
           const prev = lastLocationRef.current;
-          if (prev && prev.accuracy && prev.accuracy < 50 && accuracy > 500) {
-              console.warn("Ignoring low accuracy update", accuracy);
-              return;
-          }
+          if (prev && prev.accuracy && prev.accuracy < 50 && accuracy > 500) return;
 
           lastLocationRef.current = newPoint;
           setUserLocation(newPoint);
 
           setActiveSegment(prevSeg => {
             if (!prevSeg) return null;
-            
-            // Only add points to the route if accuracy is reasonable (< 30m)
-            if (accuracy > 30) {
-                return prevSeg;
-            }
+            if (accuracy > 30) return prevSeg;
 
             const lastPoint = prevSeg.points[prevSeg.points.length - 1];
             let distToAdd = 0;
             if (lastPoint && isValidNumber(lastPoint.lat) && isValidNumber(lastPoint.lng)) {
               distToAdd = calculateDistance(lastPoint, newPoint);
             }
-
-            // Filter GPS noise
-            if (prevSeg.points.length > 0 && distToAdd < 1) {
-              return prevSeg;
-            }
+            if (prevSeg.points.length > 0 && distToAdd < 1) return prevSeg;
             
             if (!isValidNumber(distToAdd)) distToAdd = 0;
 
-            const updatedPoints = [...prevSeg.points, newPoint];
             const newDist = prevSeg.distance + distToAdd;
             const metrics = calculateSegmentMetrics(newDist, prevSeg.mode);
 
             return {
-              ...prevSeg,
-              points: updatedPoints,
-              distance: newDist,
-              steps: metrics.steps,
-              calories: metrics.calories
+              ...prevSeg, points: [...prevSeg.points, newPoint], distance: newDist, steps: metrics.steps, calories: metrics.calories
             };
           });
         },
@@ -264,28 +208,16 @@ const App: React.FC = () => {
         watchId.current = null;
       }
     }
-
     return () => {
-      if (watchId.current !== null) {
-        navigator.geolocation.clearWatch(watchId.current);
-      }
+      if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current);
     };
   }, [isTracking]);
 
-  // Handle Mode Switching
   const handleModeChange = (newMode: MovementMode) => {
     if (newMode === currentMode) return;
-    
     setCurrentMode(newMode);
-
     if (isTracking && activeSegment && currentRoute) {
-      // Finalize current segment
-      const completedSegment: RouteSegment = {
-        ...activeSegment,
-        endTime: Date.now()
-      };
-
-      // Push to route segments
+      const completedSegment: RouteSegment = { ...activeSegment, endTime: Date.now() };
       setCurrentRoute(prev => {
         if (!prev) return null;
         return {
@@ -296,32 +228,18 @@ const App: React.FC = () => {
           totalCalories: prev.totalCalories + completedSegment.calories
         };
       });
-
-      // Start new segment
       setActiveSegment({
-        id: generateId(),
-        mode: newMode,
-        points: [], // Start fresh points 
-        startTime: Date.now(),
-        distance: 0,
-        steps: 0,
-        calories: 0
+        id: generateId(), mode: newMode, points: [], startTime: Date.now(), distance: 0, steps: 0, calories: 0
       });
     }
   };
 
   const handleToggleTracking = () => {
     if (isTracking) {
-      // Pause
       setIsTracking(false);
-      
-      // Accumulate time logic
-      const sessionDuration = Date.now() - startTimeRef.current;
-      accumulatedTimeRef.current += sessionDuration;
-      startTimeRef.current = 0; // Reset start time for next resume
-
+      accumulatedTimeRef.current += (Date.now() - startTimeRef.current);
+      startTimeRef.current = 0;
     } else {
-      // Resume
       startTimeRef.current = Date.now();
       setIsTracking(true);
     }
@@ -329,11 +247,8 @@ const App: React.FC = () => {
 
   const handleStopTracking = () => {
     setIsTracking(false);
-    
     if (currentRoute) {
-      // Consolidate final segment
       let finalRoute = { ...currentRoute };
-      
       if (activeSegment && activeSegment.points.length > 0) {
         const completedSegment = { ...activeSegment, endTime: Date.now() };
         finalRoute.segments = [...finalRoute.segments, completedSegment];
@@ -341,30 +256,20 @@ const App: React.FC = () => {
         finalRoute.totalSteps += completedSegment.steps;
         finalRoute.totalCalories += completedSegment.calories;
       }
-
       finalRoute.endTime = Date.now();
-      // Ensure start time is accurate to the very first segment or now if empty
       if (finalRoute.startTime === 0) finalRoute.startTime = Date.now();
-
-      // Only save if there is data
       if (finalRoute.totalDistance > 0) {
         const newSavedRoutes = [...savedRoutes, finalRoute];
         setSavedRoutes(newSavedRoutes);
         saveRoutes(newSavedRoutes);
       }
     }
-
-    // Reset All
     setCurrentRoute(null);
     setActiveSegment(null);
     setElapsedTime(0);
     accumulatedTimeRef.current = 0;
     startTimeRef.current = 0;
-    
-    // Exit fitness mode if we stop
-    if (isFitnessMode) {
-        setIsFitnessMode(false);
-    }
+    if (isFitnessMode) setIsFitnessMode(false);
   };
 
   const handleClearData = () => {
@@ -372,11 +277,21 @@ const App: React.FC = () => {
     setSavedRoutes([]);
   };
 
-  // Marker Logic
+  const handleThemeChange = (newTheme: string) => {
+    setTheme(newTheme);
+    saveTheme(newTheme);
+  };
+
+  const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const lang = e.target.value as Language;
+    setLanguage(lang);
+    saveLanguage(lang);
+  };
+
   const handleMapClick = (lat: number, lng: number) => {
     if (!isValidNumber(lat) || !isValidNumber(lng)) return;
     setTempMarkerPos({ lat, lng });
-    setEditingMarker(null); // Ensure we are not editing
+    setEditingMarker(null);
     setModalOpen(true);
     setIsAddMarkerMode(false);
   };
@@ -388,11 +303,8 @@ const App: React.FC = () => {
   };
 
   const handleSaveMarker = (label: string, type: CustomMarker['type']) => {
-    // If editing existing marker
     if (editingMarker) {
-        const updatedMarkers = markers.map(m => 
-            m.id === editingMarker.id ? { ...m, label, type } : m
-        );
+        const updatedMarkers = markers.map(m => m.id === editingMarker.id ? { ...m, label, type } : m);
         setMarkers(updatedMarkers);
         saveMarkers(updatedMarkers);
         setModalOpen(false);
@@ -400,16 +312,9 @@ const App: React.FC = () => {
         setTempMarkerPos(null);
         return;
     }
-
-    // If creating new marker
     if (tempMarkerPos && isValidNumber(tempMarkerPos.lat) && isValidNumber(tempMarkerPos.lng)) {
       const newMarker: CustomMarker = {
-        id: generateId(),
-        lat: tempMarkerPos.lat,
-        lng: tempMarkerPos.lng,
-        label,
-        type,
-        createdAt: Date.now()
+        id: generateId(), lat: tempMarkerPos.lat, lng: tempMarkerPos.lng, label, type, createdAt: Date.now()
       };
       const newMarkers = [...markers, newMarker];
       setMarkers(newMarkers);
@@ -434,12 +339,7 @@ const App: React.FC = () => {
             const lng = pos.coords.longitude;
             const accuracy = pos.coords.accuracy;
             if (isValidNumber(lat) && isValidNumber(lng)) {
-                const pt = {
-                    lat,
-                    lng,
-                    timestamp: pos.timestamp,
-                    accuracy
-                };
+                const pt = { lat, lng, timestamp: pos.timestamp, accuracy };
                 setUserLocation(pt);
                 lastLocationRef.current = pt;
                 setCenterTrigger(prev => prev + 1);
@@ -448,17 +348,16 @@ const App: React.FC = () => {
     }
   };
 
-  // Calculate live totals for display
   const liveDistance = (currentRoute?.totalDistance || 0) + (activeSegment?.distance || 0);
   const liveSteps = (currentRoute?.totalSteps || 0) + (activeSegment?.steps || 0);
   const liveCalories = (currentRoute?.totalCalories || 0) + (activeSegment?.calories || 0);
-  
-  // Logic to determine if we are in "Paused" state:
-  // Not tracking (GPS off) BUT we have a current route in memory
   const isPaused = !isTracking && currentRoute !== null;
 
   return (
-    <div className="relative w-full h-[100dvh] overflow-hidden bg-zinc-50 font-sans">
+    <div 
+      className="relative w-full h-[100dvh] overflow-hidden bg-[var(--theme-50)] font-sans"
+      style={themeVars as React.CSSProperties}
+    >
       <MapView
         userLocation={userLocation}
         currentRoute={currentRoute}
@@ -473,16 +372,18 @@ const App: React.FC = () => {
         onDeleteMarker={handleDeleteMarker}
         centerTrigger={centerTrigger}
         language={language}
+        primaryHex={themeVars.primaryHex}
+        darkHex={themeVars.darkHex}
       />
       
       {/* Language Selector */}
       <div className="absolute top-4 right-4 z-[1000] group">
-        <div className="bg-white/80 backdrop-blur-md shadow-sm rounded-full pl-2 pr-3 py-1.5 flex items-center gap-1.5 border border-zinc-200/50 hover:bg-white transition-all cursor-pointer">
-           <Globe size={16} className="text-zinc-500" />
+        <div className="bg-white/80 backdrop-blur-md shadow-sm rounded-full pl-2 pr-3 py-1.5 flex items-center gap-1.5 border border-[var(--theme-200)]/50 hover:bg-white transition-all cursor-pointer">
+           <Globe size={16} className="text-[var(--theme-500)]" />
            <select 
              value={language} 
-             onChange={(e) => setLanguage(e.target.value as Language)}
-             className="bg-transparent text-sm font-medium text-zinc-700 focus:outline-none cursor-pointer appearance-none pr-4"
+             onChange={handleLanguageChange}
+             className="bg-transparent text-sm font-medium text-[var(--theme-700)] focus:outline-none cursor-pointer appearance-none pr-4"
              style={{ backgroundImage: 'none' }}
            >
               <option value="en">English</option>
@@ -490,7 +391,7 @@ const App: React.FC = () => {
               <option value="ar">Argentino</option>
            </select>
            {/* Custom arrow */}
-           <div className="absolute right-3 top-1/2 -translate-y-1/2 w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-t-[4px] border-t-zinc-400 pointer-events-none"></div>
+           <div className="absolute right-3 top-1/2 -translate-y-1/2 w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-t-[4px] border-t-[var(--theme-400)] pointer-events-none"></div>
         </div>
       </div>
       
@@ -504,6 +405,7 @@ const App: React.FC = () => {
         showMarkers={showMarkers}
         onToggleMarkers={() => setShowMarkers(!showMarkers)}
         onToggleFitnessMode={() => setIsFitnessMode(true)}
+        onOpenThemeModal={() => setThemeOpen(true)}
         onCenterMap={handleCenterMap}
         onOpenStats={() => setStatsOpen(true)}
         currentDistance={liveDistance}
@@ -549,6 +451,14 @@ const App: React.FC = () => {
         language={language}
         onClearData={handleClearData}
       />
+      
+      <ThemeModal
+        isOpen={themeOpen}
+        onClose={() => setThemeOpen(false)}
+        currentTheme={theme}
+        onThemeSelect={handleThemeChange}
+        language={language}
+      />
 
       <PauseModal 
         isOpen={isPaused}
@@ -563,10 +473,10 @@ const App: React.FC = () => {
       />
 
       {(!userLocation || !isValidNumber(userLocation.lat)) && (
-         <div className="absolute inset-0 flex items-center justify-center bg-zinc-50 z-[100] transition-opacity duration-1000 pointer-events-none">
+         <div className="absolute inset-0 flex items-center justify-center bg-[var(--theme-50)] z-[100] transition-opacity duration-1000 pointer-events-none">
             <div className="flex flex-col items-center animate-pulse">
-                <div className="w-12 h-12 border-4 border-zinc-900 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-zinc-400 font-medium tracking-widest text-xs uppercase">{TRANSLATIONS[language].locating}</p>
+                <div className="w-12 h-12 border-4 border-[var(--theme-900)] border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-[var(--theme-400)] font-medium tracking-widest text-xs uppercase">{TRANSLATIONS[language].locating}</p>
             </div>
          </div>
       )}

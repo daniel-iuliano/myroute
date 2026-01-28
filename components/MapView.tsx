@@ -2,25 +2,23 @@ import React, { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap, useMapEvents, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import { Coordinate, Route, CustomMarker, MovementMode, Language } from '../types';
-import { MARKER_TYPES, TRANSLATIONS } from '../constants';
+import { TRANSLATIONS } from '../constants';
 
 // --- Helpers ---
-
-// Validate coordinate
 const isValidCoord = (lat: any, lng: any): boolean => {
   return typeof lat === 'number' && !isNaN(lat) && isFinite(lat) &&
          typeof lng === 'number' && !isNaN(lng) && isFinite(lng);
 };
 
 // --- Icons ---
-const createUserIcon = () => L.divIcon({
+const createUserIcon = (color: string) => L.divIcon({
   className: 'custom-user-icon',
-  html: `<div class="w-4 h-4 bg-blue-600 rounded-full border-2 border-white shadow-lg pulse-ring"></div>`,
+  html: `<div class="w-4 h-4 rounded-full border-2 border-white shadow-lg pulse-ring" style="background-color: ${color}"></div>`,
   iconSize: [16, 16],
   iconAnchor: [8, 8],
 });
 
-// SVG Paths for Clean Monochromatic Icons
+// SVG Paths
 const ICONS = {
   general: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
   shop: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/>',
@@ -31,17 +29,17 @@ const ICONS = {
 
 const createCustomMarkerIcon = (type: CustomMarker['type']) => {
   const svgContent = ICONS[type] || ICONS.general;
-  
+  // We use CSS class .custom-marker-svg for coloring
   return L.divIcon({
     className: 'custom-marker-icon',
     html: `
       <div class="relative group cursor-pointer">
-        <div class="w-10 h-10 bg-white rounded-full shadow-lg border border-zinc-200 flex items-center justify-center transform transition-transform group-hover:scale-110 text-zinc-800">
+        <div class="w-10 h-10 bg-white rounded-full shadow-lg border border-[var(--theme-200)] flex items-center justify-center transform transition-transform group-hover:scale-110 custom-marker-svg text-[var(--theme-900)]">
            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
              ${svgContent}
            </svg>
         </div>
-        <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-r border-b border-zinc-200"></div>
+        <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white rotate-45 border-r border-b border-[var(--theme-200)]"></div>
       </div>
     `,
     iconSize: [40, 48],
@@ -50,27 +48,22 @@ const createCustomMarkerIcon = (type: CustomMarker['type']) => {
   });
 };
 
-// Get path color/style based on mode
-const getPathOptions = (mode: MovementMode, isCurrent: boolean) => {
-  const baseColor = isCurrent ? '#2563eb' : '#18181b'; // Blue vs Zinc
-  const opacity = isCurrent ? 1 : 0.2;
+const getPathOptions = (mode: MovementMode, isCurrent: boolean, primaryHex: string, darkHex: string) => {
+  const baseColor = isCurrent ? primaryHex : darkHex;
+  const opacity = isCurrent ? 1 : 0.4;
   
   if (mode === 'walking') {
     return { color: baseColor, weight: isCurrent ? 5 : 4, opacity, dashArray: undefined };
   } else if (mode === 'bike') {
     return { color: baseColor, weight: isCurrent ? 5 : 4, opacity, dashArray: '5, 10' };
   } else {
-    // Bus / Vehicle
     return { color: baseColor, weight: isCurrent ? 5 : 4, opacity, dashArray: '1, 5' };
   }
 };
 
-// --- Components ---
-
 const MapResizer = () => {
   const map = useMap();
   useEffect(() => {
-    // Invalidate size after a short delay to ensure container is rendered
     const timer = setTimeout(() => {
       map.invalidateSize();
     }, 100);
@@ -133,6 +126,8 @@ interface MapViewProps {
   onDeleteMarker: (id: string) => void;
   centerTrigger: number;
   language: Language;
+  primaryHex: string;
+  darkHex: string;
 }
 
 export const MapView: React.FC<MapViewProps> = ({
@@ -148,7 +143,9 @@ export const MapView: React.FC<MapViewProps> = ({
   onEditMarker,
   onDeleteMarker,
   centerTrigger,
-  language
+  language,
+  primaryHex,
+  darkHex
 }) => {
   const mapRef = useRef<L.Map | null>(null);
   const t = TRANSLATIONS[language];
@@ -169,7 +166,7 @@ export const MapView: React.FC<MapViewProps> = ({
   };
 
   return (
-    <div className="w-full h-full absolute inset-0 bg-zinc-100 z-0">
+    <div className="w-full h-full absolute inset-0 bg-[var(--theme-50)] z-0">
       <MapContainer
         center={defaultCenter}
         zoom={13}
@@ -198,7 +195,7 @@ export const MapView: React.FC<MapViewProps> = ({
                  <Polyline
                    key={segment.id}
                    positions={validPoints}
-                   pathOptions={getPathOptions(segment.mode, false)}
+                   pathOptions={getPathOptions(segment.mode, false, primaryHex, darkHex)}
                  />
                );
             })}
@@ -213,7 +210,7 @@ export const MapView: React.FC<MapViewProps> = ({
              <Polyline
                key={segment.id}
                positions={validPoints}
-               pathOptions={getPathOptions(segment.mode, true)}
+               pathOptions={getPathOptions(segment.mode, true, primaryHex, darkHex)}
              />
            );
         })}
@@ -238,7 +235,7 @@ export const MapView: React.FC<MapViewProps> = ({
             return (
               <Polyline
                 positions={validPoints}
-                pathOptions={getPathOptions(activeSegment.mode, true)}
+                pathOptions={getPathOptions(activeSegment.mode, true, primaryHex, darkHex)}
               />
             );
           })()
@@ -249,13 +246,13 @@ export const MapView: React.FC<MapViewProps> = ({
           <Circle 
             center={[userLocation.lat, userLocation.lng]}
             radius={userLocation.accuracy}
-            pathOptions={{ color: '#2563eb', fillColor: '#2563eb', fillOpacity: 0.1, weight: 1, opacity: 0.3 }}
+            pathOptions={{ color: primaryHex, fillColor: primaryHex, fillOpacity: 0.1, weight: 1, opacity: 0.3 }}
           />
         )}
 
         {/* User Location Marker */}
         {userLocation && isValidCoord(userLocation.lat, userLocation.lng) && (
-          <Marker position={[userLocation.lat, userLocation.lng]} icon={createUserIcon()} />
+          <Marker position={[userLocation.lat, userLocation.lng]} icon={createUserIcon(primaryHex)} />
         )}
 
         {/* Custom Markers */}
@@ -269,8 +266,8 @@ export const MapView: React.FC<MapViewProps> = ({
             >
               <Popup className="custom-popup" closeButton={false}>
                 <div className="p-1 min-w-[140px]">
-                  <h3 className="font-bold text-zinc-900 text-sm">{marker.label}</h3>
-                  <p className="text-xs text-zinc-500 capitalize mb-3">{t.marker_types[marker.type]}</p>
+                  <h3 className="font-bold text-[var(--theme-900)] text-sm">{marker.label}</h3>
+                  <p className="text-xs text-[var(--theme-500)] capitalize mb-3">{t.marker_types[marker.type]}</p>
                   
                   <div className="grid grid-cols-2 gap-2">
                     <button 
@@ -278,7 +275,7 @@ export const MapView: React.FC<MapViewProps> = ({
                             mapRef.current?.closePopup();
                             onEditMarker(marker);
                         }}
-                        className="text-xs bg-zinc-100 hover:bg-zinc-200 text-zinc-900 font-semibold py-1.5 px-2 rounded-md transition-colors text-center"
+                        className="text-xs bg-[var(--theme-100)] hover:bg-[var(--theme-200)] text-[var(--theme-900)] font-semibold py-1.5 px-2 rounded-md transition-colors text-center"
                     >
                         {t.edit_location}
                     </button>
@@ -306,14 +303,18 @@ export const MapView: React.FC<MapViewProps> = ({
           transform: translate(-50%, -50%);
           width: 100%;
           height: 100%;
-          background-color: rgba(37, 99, 235, 0.4);
+          background-color: ${primaryHex};
+          opacity: 0.4;
           border-radius: 50%;
-          animation: pulse-blue 2s infinite;
+          animation: pulse-theme 2s infinite;
         }
-        @keyframes pulse-blue {
+        @keyframes pulse-theme {
           0% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
           70% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
           100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+        }
+        .custom-marker-svg {
+           color: ${darkHex}; /* Fallback or specific override */
         }
         .leaflet-control-container .leaflet-routing-container-hide {
             display: none;
