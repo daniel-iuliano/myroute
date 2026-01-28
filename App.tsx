@@ -4,6 +4,7 @@ import { MapControls } from './components/MapControls';
 import { MarkerModal } from './components/MarkerModal';
 import { StatsModal } from './components/StatsModal';
 import { PauseModal } from './components/PauseModal';
+import { FitnessModeView } from './components/FitnessModeView';
 import { Route, Coordinate, CustomMarker, RouteSegment, MovementMode, Language } from './types';
 import { getRoutes, saveRoutes, getMarkers, saveMarkers, clearRoutes } from './services/storage';
 import { calculateDistance, calculateSegmentMetrics } from './utils/geo'; 
@@ -33,6 +34,7 @@ const App: React.FC = () => {
   // UI State
   const [isAddMarkerMode, setIsAddMarkerMode] = useState(false);
   const [showMarkers, setShowMarkers] = useState(true);
+  const [isFitnessMode, setIsFitnessMode] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [tempMarkerPos, setTempMarkerPos] = useState<{lat: number, lng: number} | null>(null);
@@ -358,6 +360,11 @@ const App: React.FC = () => {
     setElapsedTime(0);
     accumulatedTimeRef.current = 0;
     startTimeRef.current = 0;
+    
+    // Exit fitness mode if we stop
+    if (isFitnessMode) {
+        setIsFitnessMode(false);
+    }
   };
 
   const handleClearData = () => {
@@ -496,6 +503,7 @@ const App: React.FC = () => {
         isAddMarkerMode={isAddMarkerMode}
         showMarkers={showMarkers}
         onToggleMarkers={() => setShowMarkers(!showMarkers)}
+        onToggleFitnessMode={() => setIsFitnessMode(true)}
         onCenterMap={handleCenterMap}
         onOpenStats={() => setStatsOpen(true)}
         currentDistance={liveDistance}
@@ -504,6 +512,20 @@ const App: React.FC = () => {
         currentMode={currentMode}
         onModeChange={handleModeChange}
         elapsedTime={elapsedTime}
+        language={language}
+      />
+
+      <FitnessModeView
+        isOpen={isFitnessMode}
+        onClose={() => setIsFitnessMode(false)}
+        isTracking={isTracking}
+        onToggleTracking={handleToggleTracking}
+        onStopTracking={handleStopTracking}
+        currentDistance={liveDistance}
+        currentSteps={liveSteps}
+        currentCalories={liveCalories}
+        elapsedTime={elapsedTime}
+        mode={currentMode}
         language={language}
       />
 

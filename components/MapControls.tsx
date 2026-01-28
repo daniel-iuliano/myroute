@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, StopCircle, MapPin, Navigation, BarChart3, Timer, Eye, EyeOff } from 'lucide-react';
+import { Play, Pause, StopCircle, MapPin, Navigation, BarChart3, Timer, Eye, EyeOff, Maximize2 } from 'lucide-react';
 import { MOVEMENT_MODES, TRANSLATIONS } from '../constants';
 import { MovementMode, Language } from '../types';
 import { formatDuration } from '../utils/geo';
@@ -12,6 +12,7 @@ interface MapControlsProps {
   isAddMarkerMode: boolean;
   showMarkers: boolean;
   onToggleMarkers: () => void;
+  onToggleFitnessMode: () => void;
   onCenterMap: () => void;
   onOpenStats: () => void;
   currentDistance: number;
@@ -31,6 +32,7 @@ export const MapControls: React.FC<MapControlsProps> = ({
   isAddMarkerMode,
   showMarkers,
   onToggleMarkers,
+  onToggleFitnessMode,
   onCenterMap,
   onOpenStats,
   currentDistance,
@@ -172,8 +174,18 @@ export const MapControls: React.FC<MapControlsProps> = ({
            )}
         </div>
 
-        {/* Marker Controls Group */}
+        {/* Marker & View Controls Group */}
         <div className="flex items-center gap-2">
+            
+             {/* Fitness Mode Toggle */}
+             <button
+                onClick={onToggleFitnessMode}
+                className="p-3 md:p-4 rounded-full shadow-xl active:scale-95 transition-all duration-200 border border-zinc-100 bg-white text-zinc-900 hover:bg-zinc-50"
+                aria-label={t.fitness_mode || "Fitness Mode"}
+            >
+                <Maximize2 size={24} strokeWidth={2} />
+            </button>
+
             {/* Toggle Markers */}
             <button
                 onClick={onToggleMarkers}
