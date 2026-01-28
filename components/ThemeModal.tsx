@@ -103,14 +103,14 @@ export const ThemeModal: React.FC<ThemeModalProps> = ({
                     onChange={handleCustomChange}
                     className="w-full h-3 rounded-lg appearance-none cursor-pointer mb-4"
                     style={{
-                        background: 'linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)'
+                        background: 'linear-gradient(to right, hsl(0, 50%, 60%) 0%, hsl(60, 50%, 60%) 17%, hsl(120, 50%, 60%) 33%, hsl(180, 50%, 60%) 50%, hsl(240, 50%, 60%) 67%, hsl(300, 50%, 60%) 83%, hsl(360, 50%, 60%) 100%)'
                     }}
                 />
 
                 <button 
                     onClick={applyCustom}
                     className="w-full py-3 rounded-xl font-bold text-white shadow-md transition-all active:scale-95 flex items-center justify-center gap-2"
-                    style={{ backgroundColor: `hsl(${customHue}, 90%, 40%)` }}
+                    style={{ backgroundColor: `hsl(${customHue}, 50%, 50%)` }}
                 >
                     {currentTheme === `custom:${customHue}` && <Check size={18} strokeWidth={3} />}
                     {t.select_theme}

@@ -35,7 +35,7 @@ export const generateThemeVariables = (theme: string): ThemeVariables => {
     const val = parseInt(theme.split(':')[1], 10);
     if (!isNaN(val)) {
       hue = val;
-      sat = 90; // Default high saturation for custom colors
+      sat = 50; // Lower saturation for softer, pastel tones
     }
   } else {
     const preset = THEME_PRESETS.find(p => p.value === theme);
