@@ -38,8 +38,8 @@ export const FitnessModeView: React.FC<FitnessModeViewProps> = ({
   return (
     <div className="fixed inset-0 z-[2000] bg-zinc-50 flex flex-col animate-in fade-in duration-300">
       
-      {/* Top Bar */}
-      <div className="px-6 py-6 flex justify-between items-center">
+      {/* Top Bar - Fixed */}
+      <div className="flex-none px-6 py-4 md:py-6 flex justify-between items-center bg-zinc-50 z-10">
         <div className="flex items-center gap-2 px-3 py-1 bg-zinc-200/50 rounded-full">
             <span className="text-xl">{mode === 'walking' ? '🚶' : mode === 'bike' ? '🚴' : mode === 'bus' ? '🚌' : '🚗'}</span>
             <span className="text-sm font-bold text-zinc-600 uppercase tracking-wider pr-1">
@@ -55,71 +55,72 @@ export const FitnessModeView: React.FC<FitnessModeViewProps> = ({
         </button>
       </div>
 
-      {/* Main Metrics - Centered */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-12">
-        
-        {/* Main Timer */}
-        <div className="flex flex-col items-center">
-             <div className="text-8xl md:text-9xl font-black text-zinc-900 font-mono tracking-tighter tabular-nums">
-                {formatDuration(elapsedTime)}
-             </div>
-             <span className="text-sm font-bold text-zinc-400 uppercase tracking-[0.2em] mt-2">{t.duration}</span>
+      {/* Main Content - Scrollable */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="min-h-full flex flex-col items-center justify-center p-6 space-y-8 md:space-y-12 pb-8">
+          
+          {/* Main Timer */}
+          <div className="flex flex-col items-center">
+               <div className="text-7xl md:text-9xl font-black text-zinc-900 font-mono tracking-tighter tabular-nums text-center">
+                  {formatDuration(elapsedTime)}
+               </div>
+               <span className="text-xs md:text-sm font-bold text-zinc-400 uppercase tracking-[0.2em] mt-2">{t.duration}</span>
+          </div>
+
+          {/* Secondary Metrics Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 w-full max-w-4xl">
+              
+              {/* Distance */}
+              <div className="flex flex-col items-center justify-center p-5 md:p-6 bg-white rounded-3xl shadow-sm border border-zinc-100/50">
+                  <span className="text-4xl md:text-5xl font-bold text-zinc-900 tracking-tight">
+                      {(currentDistance / 1000).toFixed(2)}
+                  </span>
+                  <span className="text-xs md:text-sm font-bold text-zinc-400 uppercase tracking-wider mt-1">{t.km}</span>
+              </div>
+
+              {/* Steps (if walking) */}
+              {mode === 'walking' && (
+                  <div className="flex flex-col items-center justify-center p-5 md:p-6 bg-white rounded-3xl shadow-sm border border-zinc-100/50">
+                      <span className="text-4xl md:text-5xl font-bold text-zinc-900 tracking-tight">
+                          {currentSteps.toLocaleString()}
+                      </span>
+                      <span className="text-xs md:text-sm font-bold text-zinc-400 uppercase tracking-wider mt-1">{t.steps}</span>
+                  </div>
+              )}
+
+              {/* Calories */}
+              <div className="flex flex-col items-center justify-center p-5 md:p-6 bg-white rounded-3xl shadow-sm border border-zinc-100/50">
+                  <span className="text-4xl md:text-5xl font-bold text-zinc-900 tracking-tight">
+                      {Math.round(currentCalories)}
+                  </span>
+                  <span className="text-xs md:text-sm font-bold text-zinc-400 uppercase tracking-wider mt-1">{t.calories}</span>
+              </div>
+          </div>
         </div>
-
-        {/* Secondary Metrics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-4xl">
-            
-            {/* Distance */}
-            <div className="flex flex-col items-center justify-center p-6 bg-white rounded-3xl shadow-sm border border-zinc-100/50">
-                <span className="text-5xl font-bold text-zinc-900 tracking-tight">
-                    {(currentDistance / 1000).toFixed(2)}
-                </span>
-                <span className="text-sm font-bold text-zinc-400 uppercase tracking-wider mt-1">{t.km}</span>
-            </div>
-
-            {/* Steps (if walking) */}
-            {mode === 'walking' && (
-                <div className="flex flex-col items-center justify-center p-6 bg-white rounded-3xl shadow-sm border border-zinc-100/50">
-                    <span className="text-5xl font-bold text-zinc-900 tracking-tight">
-                        {currentSteps.toLocaleString()}
-                    </span>
-                    <span className="text-sm font-bold text-zinc-400 uppercase tracking-wider mt-1">{t.steps}</span>
-                </div>
-            )}
-
-            {/* Calories */}
-            <div className="flex flex-col items-center justify-center p-6 bg-white rounded-3xl shadow-sm border border-zinc-100/50">
-                <span className="text-5xl font-bold text-zinc-900 tracking-tight">
-                    {Math.round(currentCalories)}
-                </span>
-                <span className="text-sm font-bold text-zinc-400 uppercase tracking-wider mt-1">{t.calories}</span>
-            </div>
-        </div>
-
       </div>
 
-      {/* Bottom Controls */}
-      <div className="pb-12 pt-6 flex justify-center items-center gap-6">
+      {/* Bottom Controls - Fixed */}
+      <div className="flex-none pb-8 pt-4 md:pb-12 md:pt-6 flex justify-center items-center gap-6 bg-zinc-50 border-t border-zinc-100 z-10">
         {!isTracking ? (
            <button
              onClick={onToggleTracking}
-             className="bg-zinc-900 text-white w-24 h-24 rounded-full shadow-2xl hover:bg-zinc-800 active:scale-95 transition-all flex items-center justify-center"
+             className="bg-zinc-900 text-white w-20 h-20 md:w-24 md:h-24 rounded-full shadow-2xl hover:bg-zinc-800 active:scale-95 transition-all flex items-center justify-center"
            >
-             <Play size={40} fill="currentColor" className="ml-2" />
+             <Play fill="currentColor" className="ml-2 w-8 h-8 md:w-10 md:h-10" />
            </button>
         ) : (
             <>
              <button
                onClick={onToggleTracking}
-               className="bg-zinc-100 text-amber-500 w-20 h-20 rounded-full shadow-lg hover:bg-zinc-200 active:scale-95 transition-all flex items-center justify-center border-2 border-zinc-200"
+               className="bg-zinc-100 text-amber-500 w-16 h-16 md:w-20 md:h-20 rounded-full shadow-lg hover:bg-zinc-200 active:scale-95 transition-all flex items-center justify-center border-2 border-zinc-200"
              >
-               <Pause size={32} fill="currentColor" />
+               <Pause fill="currentColor" className="w-7 h-7 md:w-8 md:h-8" />
              </button>
              <button
                onClick={onStopTracking}
-               className="bg-red-500 text-white w-20 h-20 rounded-full shadow-xl shadow-red-200 hover:bg-red-600 active:scale-95 transition-all flex items-center justify-center"
+               className="bg-red-500 text-white w-16 h-16 md:w-20 md:h-20 rounded-full shadow-xl shadow-red-200 hover:bg-red-600 active:scale-95 transition-all flex items-center justify-center"
              >
-               <StopCircle size={32} fill="currentColor" />
+               <StopCircle fill="currentColor" className="w-7 h-7 md:w-8 md:h-8" />
              </button>
             </>
         )}
