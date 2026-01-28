@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, StopCircle, MapPin, Navigation, BarChart3, Timer } from 'lucide-react';
+import { Play, Pause, StopCircle, MapPin, Navigation, BarChart3, Timer, Eye, EyeOff } from 'lucide-react';
 import { MOVEMENT_MODES, TRANSLATIONS } from '../constants';
 import { MovementMode, Language } from '../types';
 import { formatDuration } from '../utils/geo';
@@ -10,6 +10,8 @@ interface MapControlsProps {
   onStopTracking: () => void;
   onAddMarkerMode: () => void;
   isAddMarkerMode: boolean;
+  showMarkers: boolean;
+  onToggleMarkers: () => void;
   onCenterMap: () => void;
   onOpenStats: () => void;
   currentDistance: number;
@@ -27,6 +29,8 @@ export const MapControls: React.FC<MapControlsProps> = ({
   onStopTracking,
   onAddMarkerMode,
   isAddMarkerMode,
+  showMarkers,
+  onToggleMarkers,
   onCenterMap,
   onOpenStats,
   currentDistance,
@@ -168,18 +172,34 @@ export const MapControls: React.FC<MapControlsProps> = ({
            )}
         </div>
 
-        {/* Add Marker Button */}
-        <button
-          onClick={onAddMarkerMode}
-          className={`p-3 md:p-4 rounded-full shadow-xl active:scale-95 transition-all duration-200 border border-zinc-100 ${
-            isAddMarkerMode 
-              ? 'bg-zinc-900 text-white ring-2 ring-zinc-900 ring-offset-2' 
-              : 'bg-white text-zinc-900 hover:bg-zinc-50'
-          }`}
-          aria-label={t.add_marker || "Add Marker"}
-        >
-          <MapPin size={24} strokeWidth={2} className={isAddMarkerMode ? "animate-pulse" : ""} />
-        </button>
+        {/* Marker Controls Group */}
+        <div className="flex items-center gap-2">
+            {/* Toggle Markers */}
+            <button
+                onClick={onToggleMarkers}
+                className={`p-3 md:p-4 rounded-full shadow-xl active:scale-95 transition-all duration-200 border border-zinc-100 ${
+                !showMarkers 
+                    ? 'bg-zinc-100 text-zinc-400' 
+                    : 'bg-white text-zinc-900 hover:bg-zinc-50'
+                }`}
+                aria-label={t.toggle_markers || "Toggle Markers"}
+            >
+                {showMarkers ? <Eye size={24} strokeWidth={2} /> : <EyeOff size={24} strokeWidth={2} />}
+            </button>
+
+            {/* Add Marker Button */}
+            <button
+            onClick={onAddMarkerMode}
+            className={`p-3 md:p-4 rounded-full shadow-xl active:scale-95 transition-all duration-200 border border-zinc-100 ${
+                isAddMarkerMode 
+                ? 'bg-zinc-900 text-white ring-2 ring-zinc-900 ring-offset-2' 
+                : 'bg-white text-zinc-900 hover:bg-zinc-50'
+            }`}
+            aria-label={t.add_marker || "Add Marker"}
+            >
+            <MapPin size={24} strokeWidth={2} className={isAddMarkerMode ? "animate-pulse" : ""} />
+            </button>
+        </div>
       </div>
       
       {isAddMarkerMode && (

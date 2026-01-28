@@ -32,9 +32,13 @@ const App: React.FC = () => {
 
   // UI State
   const [isAddMarkerMode, setIsAddMarkerMode] = useState(false);
+  const [showMarkers, setShowMarkers] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [tempMarkerPos, setTempMarkerPos] = useState<{lat: number, lng: number} | null>(null);
+  // Track which marker is being edited
+  const [editingMarker, setEditingMarker] = useState<CustomMarker | null>(null);
+  
   const [centerTrigger, setCenterTrigger] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
 
@@ -365,11 +369,32 @@ const App: React.FC = () => {
   const handleMapClick = (lat: number, lng: number) => {
     if (!isValidNumber(lat) || !isValidNumber(lng)) return;
     setTempMarkerPos({ lat, lng });
+    setEditingMarker(null); // Ensure we are not editing
     setModalOpen(true);
     setIsAddMarkerMode(false);
   };
 
+  const handleEditMarker = (marker: CustomMarker) => {
+      setTempMarkerPos({ lat: marker.lat, lng: marker.lng });
+      setEditingMarker(marker);
+      setModalOpen(true);
+  };
+
   const handleSaveMarker = (label: string, type: CustomMarker['type']) => {
+    // If editing existing marker
+    if (editingMarker) {
+        const updatedMarkers = markers.map(m => 
+            m.id === editingMarker.id ? { ...m, label, type } : m
+        );
+        setMarkers(updatedMarkers);
+        saveMarkers(updatedMarkers);
+        setModalOpen(false);
+        setEditingMarker(null);
+        setTempMarkerPos(null);
+        return;
+    }
+
+    // If creating new marker
     if (tempMarkerPos && isValidNumber(tempMarkerPos.lat) && isValidNumber(tempMarkerPos.lng)) {
       const newMarker: CustomMarker = {
         id: generateId(),
@@ -435,7 +460,9 @@ const App: React.FC = () => {
         markers={markers}
         isTracking={isTracking}
         isAddMarkerMode={isAddMarkerMode}
+        showMarkers={showMarkers}
         onMapClick={handleMapClick}
+        onEditMarker={handleEditMarker}
         onDeleteMarker={handleDeleteMarker}
         centerTrigger={centerTrigger}
         language={language}
@@ -467,6 +494,8 @@ const App: React.FC = () => {
         onStopTracking={handleStopTracking}
         onAddMarkerMode={() => setIsAddMarkerMode(!isAddMarkerMode)}
         isAddMarkerMode={isAddMarkerMode}
+        showMarkers={showMarkers}
+        onToggleMarkers={() => setShowMarkers(!showMarkers)}
         onCenterMap={handleCenterMap}
         onOpenStats={() => setStatsOpen(true)}
         currentDistance={liveDistance}
@@ -483,9 +512,11 @@ const App: React.FC = () => {
         onClose={() => {
             setModalOpen(false);
             setTempMarkerPos(null);
+            setEditingMarker(null);
         }}
         onSave={handleSaveMarker}
         tempMarker={tempMarkerPos}
+        editingMarker={editingMarker}
         language={language}
       />
 
